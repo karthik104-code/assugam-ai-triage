@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assugam AI - Medical Triage Assistant</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- Phosphor Icons for premium icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+</head>
+<body>
+    <div id="safety-banner" class="safety-banner">
+        <i class="ph-fill ph-warning-circle"></i>
+        <span><strong>Safety First:</strong> I am an AI, not a doctor. If you are experiencing a life-threatening emergency, call emergency services immediately.</span>
+    </div>
+
+    <main class="container">
+        <header>
+            <div class="logo">
+                <i class="ph-fill ph-heartbeat heartbeat-icon"></i>
+                <h1>Assugam AI</h1>
+            </div>
+            <p class="subtitle">Intelligent Voice-Activated Medical Triage</p>
+        </header>
+
+        <section class="interaction-area">
+            <div class="mic-container">
+                <button id="record-btn" class="record-btn">
+                    <i class="ph-fill ph-microphone"></i>
+                </button>
+                <div class="ripple-container"></div>
+            </div>
+            <p id="status-text" class="status-text">Tap to describe your symptoms</p>
+            
+            <div class="transcript-container">
+                <textarea id="transcript-text" class="transcript-input" placeholder="Your spoken symptoms will appear here... or type them directly."></textarea>
+                <div class="action-buttons">
+                    <button id="submit-btn" class="submit-btn">
+                        <i class="ph-fill ph-paper-plane-right"></i> Analyze
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <section id="results-area" class="results-area hidden">
+            <div class="glass-panel emergency-alert hidden" id="emergency-alert">
+                <i class="ph-fill ph-warning"></i>
+                <div>
+                    <h3>EMERGENCY DETECTED</h3>
+                    <p>Please seek immediate medical attention or call your local emergency number.</p>
+                </div>
+            </div>
+
+            <div class="glass-panel result-card">
+                <h2><i class="ph ph-stethoscope"></i> Preliminary Analysis</h2>
+                <p id="analysis-text">Loading analysis...</p>
+                
+                <div class="tags-container">
+                    <h3>Possible Conditions</h3>
+                    <div id="conditions-list" class="tags"></div>
+                </div>
+
+                <div class="tags-container">
+                    <h3>OTC Management Suggestions</h3>
+                    <div id="otc-list" class="tags otc-tags"></div>
+                </div>
+            </div>
+
+            <div class="glass-panel result-card">
+                <h2><i class="ph ph-map-pin"></i> Recommended Providers</h2>
+                <p>Based on your symptoms, we recommend consulting a <strong id="specialty-text">Specialist</strong>.</p>
+                <div id="doctors-list" class="doctors-list">
+                    <!-- Doctor cards will be injected here -->
+                    <div class="loader"></div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
