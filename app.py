@@ -1,13 +1,35 @@
 import os
 import json
-from flask import Flask, render_template, request, jsonify
+import sqlite3
+from flask import Flask, render_template, request, jsonify, session
+from werkzeug.security import generate_password_hash, check_password_hash
 from google import genai
 from dotenv import load_dotenv
 
 load_dotenv()
 
 app = Flask(__name__)
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", "super-secret-triage-key")
 
+# Database initialization
+def init_db():
+    conn = sqlite3.connect('app.db')
+    c = conn.cursor()
+    c.execute('''CREATE TABLE IF NOT EXISTS users
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE, password TEXT)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS history
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, 
+                  timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                  transcript TEXT, analysis TEXT, specialty TEXT)''')
+    conn.commit()
+    conn.close()
+
+init_db()
+
+def get_db():
+    conn = sqlite3.connect('app.db')
+    conn.row_factory = sqlite3.Row
+    return conn
 # Initialize Gemini Client if API Key is available
 gemini_api_key = os.environ.get("GEMINI_API_KEY")
 client = genai.Client(api_key=gemini_api_key) if gemini_api_key else None
@@ -30,6 +52,72 @@ Respond ONLY with a valid JSON object (no markdown, no backticks, no code blocks
 @app.route('/')
 def index():
     return render_template('index.html')
+
+@app.route('/api/auth/status', methods=['GET'])
+def auth_status():
+    if 'user_id' in session:
+        return jsonify({"logged_in": True, "username": session.get('username')})
+    return jsonify({"logged_in": False})
+
+@app.route('/api/auth/register', methods=['POST'])
+def register():
+    data = request.json
+    username = data.get('username')
+    password = data.get('password')
+    if not username or not password:
+        return jsonify({"error": "Username and password required"}), 400
+    
+    conn = get_db()
+    c = conn.cursor()
+    try:
+        c.execute("INSERT INTO users (username, password) VALUES (?, ?)", 
+                  (username, generate_password_hash(password)))
+        conn.commit()
+        
+        session['user_id'] = c.lastrowid
+        session['username'] = username
+        return jsonify({"success": True, "message": "Registered successfully"})
+    except sqlite3.IntegrityError:
+        return jsonify({"error": "Username already exists"}), 409
+    finally:
+        conn.close()
+
+@app.route('/api/auth/login', methods=['POST'])
+def login():
+    data = request.json
+    username = data.get('username')
+    password = data.get('password')
+    
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("SELECT id, username, password FROM users WHERE username = ?", (username,))
+    user = c.fetchone()
+    conn.close()
+    
+    if user and check_password_hash(user['password'], password):
+        session['user_id'] = user['id']
+        session['username'] = user['username']
+        return jsonify({"success": True, "message": "Logged in successfully"})
+    
+    return jsonify({"error": "Invalid username or password"}), 401
+
+@app.route('/api/auth/logout', methods=['POST'])
+def logout():
+    session.clear()
+    return jsonify({"success": True, "message": "Logged out successfully"})
+
+@app.route('/api/history', methods=['GET'])
+def get_history():
+    if 'user_id' not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+        
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("SELECT timestamp, transcript, analysis, specialty FROM history WHERE user_id = ? ORDER BY id DESC", (session['user_id'],))
+    records = [dict(row) for row in c.fetchall()]
+    conn.close()
+    
+    return jsonify({"history": records})
 
 @app.route('/api/analyze', methods=['POST'])
 def analyze_symptoms():
@@ -82,6 +170,16 @@ def analyze_symptoms():
             llm_output = llm_output[:-3]
             
         parsed_response = json.loads(llm_output.strip())
+        
+        # Save to history if logged in
+        if 'user_id' in session:
+            conn = get_db()
+            c = conn.cursor()
+            c.execute("INSERT INTO history (user_id, transcript, analysis, specialty) VALUES (?, ?, ?, ?)",
+                      (session['user_id'], transcript, parsed_response.get('analysis', ''), parsed_response.get('recommended_specialty', '')))
+            conn.commit()
+            conn.close()
+            
         return jsonify(parsed_response)
         
     except Exception as e:

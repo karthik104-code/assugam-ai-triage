@@ -10,18 +10,31 @@
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
 </head>
 <body>
+    <!-- Initial Loading Splash Screen -->
+    <div id="splash-screen" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-color); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.8s ease-out, visibility 0.8s ease-out;">
+        <i class="ph-fill ph-heartbeat heartbeat-icon" style="font-size: 5rem; margin-bottom: 20px;"></i>
+        <h1 style="background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-size: 2.5rem; letter-spacing: -0.5px;">Assugam AI</h1>
+        <p style="color: var(--text-muted); margin-top: 10px; font-weight: 300; letter-spacing: 1px;">Loading Intelligence...</p>
+    </div>
+
     <div id="safety-banner" class="safety-banner">
         <i class="ph-fill ph-warning-circle"></i>
         <span><strong>Safety First:</strong> I am an AI, not a doctor. If you are experiencing a life-threatening emergency, call emergency services immediately.</span>
     </div>
 
     <main class="container">
-        <header>
-            <div class="logo">
-                <i class="ph-fill ph-heartbeat heartbeat-icon"></i>
-                <h1>Assugam AI</h1>
+        <header style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+            <div>
+                <div class="logo">
+                    <i class="ph-fill ph-heartbeat heartbeat-icon"></i>
+                    <h1>Assugam AI</h1>
+                </div>
+                <p class="subtitle">Intelligent Voice-Activated Medical Triage</p>
             </div>
-            <p class="subtitle">Intelligent Voice-Activated Medical Triage</p>
+            <div class="header-actions" style="display: flex; gap: 10px;">
+                <button id="history-toggle-btn" class="submit-btn hidden" style="padding: 8px 15px; font-size: 0.9rem;"><i class="ph ph-clock-counter-clockwise"></i> History</button>
+                <button id="auth-btn" class="submit-btn" style="padding: 8px 15px; font-size: 0.9rem; background: rgba(255,255,255,0.1);"><i class="ph ph-user"></i> Sign In</button>
+            </div>
         </header>
 
         <section class="interaction-area">
@@ -77,6 +90,35 @@
             </div>
         </section>
     </main>
+
+    <!-- Auth Modal / Gateway Screen -->
+    <div id="auth-modal" class="modal hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15,23,42,0.98); display: flex; align-items: center; justify-content: center; z-index: 1000; flex-direction: column;">
+        <div class="glass-panel" style="width: 90%; max-width: 400px; padding: 2rem; position: relative;">
+            <h2 id="auth-title" style="margin-bottom: 1.5rem; text-align: center;"><i class="ph ph-user"></i> Sign In to Assugam</h2>
+            <div style="display: flex; flex-direction: column; gap: 15px;">
+                <input type="text" id="auth-username" placeholder="Username" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.2); color: white; font-family: 'Outfit';">
+                <input type="password" id="auth-password" placeholder="Password" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.2); color: white; font-family: 'Outfit';">
+                <p id="auth-error" style="color: var(--danger); font-size: 0.9rem; margin: 0; display: none;"></p>
+                <button id="submit-auth-btn" class="submit-btn" style="width: 100%; justify-content: center;">Login</button>
+                <p style="text-align: center; margin-top: 10px; font-size: 0.9rem;">
+                    <a href="#" id="switch-to-register" style="color: var(--accent-primary); text-decoration: none;">Don't have an account? Register</a>
+                </p>
+                <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.1); margin: 10px 0;">
+                <button id="guest-btn" style="background: none; border: 1px solid rgba(255,255,255,0.2); color: white; padding: 10px; border-radius: 8px; cursor: pointer; transition: background 0.2s;">Continue as Guest</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- History Panel -->
+    <div id="history-panel" class="hidden" style="position: fixed; top: 0; right: 0; width: 350px; height: 100%; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); border-left: 1px solid rgba(255,255,255,0.1); z-index: 900; padding: 2rem; overflow-y: auto; box-shadow: -5px 0 15px rgba(0,0,0,0.5);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+            <h2><i class="ph ph-clock-counter-clockwise"></i> Your History</h2>
+            <button id="close-history-btn" style="background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer;">&times;</button>
+        </div>
+        <div id="history-list" style="display: flex; flex-direction: column; gap: 15px;">
+            <!-- History items here -->
+        </div>
+    </div>
 
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>

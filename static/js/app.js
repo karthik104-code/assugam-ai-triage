@@ -146,6 +146,15 @@ document.addEventListener('DOMContentLoaded', () => {
         analysisText.textContent = data.analysis;
         specialtyText.textContent = data.recommended_specialty;
 
+        // Voice Output using HTML5 SpeechSynthesis
+        if ('speechSynthesis' in window) {
+            window.speechSynthesis.cancel(); // Stop any currently playing audio
+            const utterance = new SpeechSynthesisUtterance(data.analysis);
+            utterance.rate = 1.0;
+            // Optionally set voice here if needed, default is usually fine
+            window.speechSynthesis.speak(utterance);
+        }
+
         // Render Conditions
         conditionsList.innerHTML = '';
         data.possible_conditions.forEach(condition => {
@@ -235,5 +244,180 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Error fetching doctors:', error);
             doctorsList.innerHTML = '<p style="color: var(--danger);">Failed to load provider recommendations.</p>';
         }
+    }
+
+    // --- Authentication & History Logic ---
+    const authBtn = document.getElementById('auth-btn');
+    const authModal = document.getElementById('auth-modal');
+    const authTitle = document.getElementById('auth-title');
+    const authUsername = document.getElementById('auth-username');
+    const authPassword = document.getElementById('auth-password');
+    const submitAuthBtn = document.getElementById('submit-auth-btn');
+    const switchToRegister = document.getElementById('switch-to-register');
+    const authError = document.getElementById('auth-error');
+    
+    const historyToggleBtn = document.getElementById('history-toggle-btn');
+    const historyPanel = document.getElementById('history-panel');
+    const closeHistoryBtn = document.getElementById('close-history-btn');
+    const historyList = document.getElementById('history-list');
+
+    let isLoginMode = true;
+    let isLoggedIn = false;
+
+    // Check login status on load
+    checkAuthStatus();
+
+    async function checkAuthStatus() {
+        try {
+            const res = await fetch('/api/auth/status');
+            const data = await res.json();
+            if (data.logged_in) {
+                setLoggedInState(data.username);
+            } else {
+                setLoggedOutState();
+                authModal.classList.remove('hidden');
+            }
+        } catch(e) { 
+            console.error(e); 
+            authModal.classList.remove('hidden');
+        }
+    }
+
+    function setLoggedInState(username) {
+        isLoggedIn = true;
+        authBtn.innerHTML = `<i class="ph ph-sign-out"></i> Logout (${username})`;
+        historyToggleBtn.classList.remove('hidden');
+    }
+
+    function setLoggedOutState() {
+        isLoggedIn = false;
+        authBtn.innerHTML = `<i class="ph ph-user"></i> Sign In`;
+        historyToggleBtn.classList.add('hidden');
+        historyPanel.classList.add('hidden');
+    }
+
+    authBtn.addEventListener('click', async () => {
+        if (isLoggedIn) {
+            // Logout
+            await fetch('/api/auth/logout', { method: 'POST' });
+            setLoggedOutState();
+        } else {
+            // Show modal
+            authModal.classList.remove('hidden');
+        }
+    });
+
+    const guestBtn = document.getElementById('guest-btn');
+    if (guestBtn) {
+        guestBtn.addEventListener('click', () => {
+            authModal.classList.add('hidden');
+        });
+    }
+
+    switchToRegister.addEventListener('click', (e) => {
+        e.preventDefault();
+        isLoginMode = !isLoginMode;
+        if (isLoginMode) {
+            authTitle.innerHTML = '<i class="ph ph-user"></i> Sign In';
+            submitAuthBtn.textContent = 'Login';
+            switchToRegister.textContent = "Don't have an account? Register";
+        } else {
+            authTitle.innerHTML = '<i class="ph ph-user-plus"></i> Create Account';
+            submitAuthBtn.textContent = 'Register';
+            switchToRegister.textContent = "Already have an account? Login";
+        }
+        authError.style.display = 'none';
+    });
+
+    submitAuthBtn.addEventListener('click', async () => {
+        const username = authUsername.value.trim();
+        const password = authPassword.value.trim();
+        if(!username || !password) return;
+
+        const endpoint = isLoginMode ? '/api/auth/login' : '/api/auth/register';
+        submitAuthBtn.disabled = true;
+        
+        try {
+            const res = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            const data = await res.json();
+            
+            if (res.ok) {
+                authModal.classList.add('hidden');
+                authUsername.value = '';
+                authPassword.value = '';
+                authError.style.display = 'none';
+                setLoggedInState(username);
+            } else {
+                authError.textContent = data.error;
+                authError.style.display = 'block';
+            }
+        } catch(e) {
+            authError.textContent = 'Network error';
+            authError.style.display = 'block';
+        } finally {
+            submitAuthBtn.disabled = false;
+        }
+    });
+
+    // History Toggle
+    historyToggleBtn.addEventListener('click', async () => {
+        if (historyPanel.classList.contains('hidden')) {
+            historyPanel.classList.remove('hidden');
+            await loadHistory();
+        } else {
+            historyPanel.classList.add('hidden');
+        }
+    });
+
+    closeHistoryBtn.addEventListener('click', () => {
+        historyPanel.classList.add('hidden');
+    });
+
+    async function loadHistory() {
+        historyList.innerHTML = '<div class="loader"></div>';
+        try {
+            const res = await fetch('/api/history');
+            const data = await res.json();
+            if (data.history && data.history.length > 0) {
+                historyList.innerHTML = '';
+                data.history.forEach(item => {
+                    const card = document.createElement('div');
+                    card.style.background = 'rgba(255,255,255,0.05)';
+                    card.style.padding = '15px';
+                    card.style.borderRadius = '8px';
+                    card.style.border = '1px solid rgba(255,255,255,0.1)';
+                    card.innerHTML = `
+                        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 5px;">${new Date(item.timestamp).toLocaleString()}</p>
+                        <p style="font-size: 0.9rem; font-style: italic; margin-bottom: 10px;">"${item.transcript}"</p>
+                        <p style="font-size: 0.95rem;"><strong>Analysis:</strong> ${item.analysis}</p>
+                        <p style="font-size: 0.85rem; color: var(--accent-primary); margin-top: 5px;">Recommended: ${item.specialty}</p>
+                    `;
+                    historyList.appendChild(card);
+                });
+            } else {
+                historyList.innerHTML = '<p style="color: var(--text-muted);">No history found.</p>';
+            }
+        } catch (e) {
+            historyList.innerHTML = '<p style="color: var(--danger);">Failed to load history.</p>';
+        }
+    }
+});
+
+// --- Splash Screen Logic ---
+window.addEventListener('load', () => {
+    const splash = document.getElementById('splash-screen');
+    if (splash) {
+        // Show splash for 2.5 seconds before fading out
+        setTimeout(() => {
+            splash.style.opacity = '0';
+            // Wait for CSS transition (0.8s) to complete before hiding
+            setTimeout(() => {
+                splash.style.visibility = 'hidden';
+            }, 800); 
+        }, 2500); 
     }
 });
