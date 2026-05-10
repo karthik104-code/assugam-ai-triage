@@ -214,7 +214,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     docCard.className = 'doctor-card';
                     docCard.innerHTML = `
                         <div class="doctor-info">
-                            <h4>${doc.name}</h4>
+                            <h4>
+                                <a href="${doc.map_link}" target="_blank" style="color: inherit; text-decoration: none;">
+                                    ${doc.name} <i class="ph ph-arrow-square-out" style="font-size: 0.8em; color: var(--accent-primary);"></i>
+                                </a>
+                            </h4>
                             <p><i class="ph ph-map-pin"></i> ${doc.address} (${doc.distance})</p>
                         </div>
                         <div class="doctor-rating">

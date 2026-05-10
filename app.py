@@ -109,19 +109,23 @@ def calculate_distance(lat1, lon1, lat2, lon2):
 def find_doctors():
     data = request.json
     specialty = data.get('specialty', 'General Practitioner')
+    # Prevent long AI sentences from breaking the clinic names
+    if len(specialty) > 35:
+        specialty = "Specialist"
+        
     location = data.get('location', None)
     
     if not location or (location.get('lat') == 0 and location.get('lng') == 0):
         # Fallback if no location provided
         return jsonify({"doctors": [
-            {"name": f"City {specialty} Clinic", "address": "Location not provided", "rating": 4.5, "distance": "N/A"}
+            {"name": f"City {specialty} Clinic", "address": "Location not provided", "rating": 4.5, "distance": "N/A", "map_link": "#"}
         ]})
 
     user_lat = location.get('lat')
     user_lng = location.get('lng')
     
     # Query OpenStreetMap Overpass API for clinics/hospitals within 10km (approx 6.2 miles)
-    overpass_url = "http://overpass-api.de/api/interpreter"
+    overpass_url = "https://overpass-api.de/api/interpreter"
     overpass_query = f"""
     [out:json][timeout:15];
     (
@@ -135,7 +139,9 @@ def find_doctors():
     try:
         # We use requests which is already in requirements.txt
         import requests
-        response = requests.post(overpass_url, data={'data': overpass_query}, timeout=10)
+        headers = {'User-Agent': 'AssugamAi-MedicalTriage/1.0'}
+        response = requests.post(overpass_url, data={'data': overpass_query}, headers=headers, timeout=10)
+        response.raise_for_status()
         result = response.json()
         
         doctors = []
@@ -160,20 +166,21 @@ def find_doctors():
                 "name": name,
                 "address": address,
                 "rating": 4.5, # OSM doesn't have ratings, so we mock a good rating
-                "distance": f"{dist:.1f} miles"
+                "distance": f"{dist:.1f} miles",
+                "map_link": f"https://www.google.com/maps/search/?api=1&query={poi_lat},{poi_lon}"
             })
             
         # Sort by distance
         doctors.sort(key=lambda x: float(x['distance'].split(' ')[0]))
             
         if not doctors:
-             doctors = [{"name": f"Nearest {specialty} Specialist", "address": "Search regional directory", "rating": 4.0, "distance": "> 10 miles"}]
+             doctors = [{"name": f"Nearest {specialty} Specialist", "address": "Search regional directory", "rating": 4.0, "distance": "> 10 miles", "map_link": "#"}]
              
         return jsonify({"doctors": doctors})
         
     except Exception as e:
         print(f"Overpass API error: {e}")
-        return jsonify({"doctors": [{"name": f"City {specialty} Clinic", "address": "Could not load exact location", "rating": 4.5, "distance": "Unknown"}]})
+        return jsonify({"doctors": [{"name": f"City {specialty} Clinic", "address": "Could not load exact location", "rating": 4.5, "distance": "Unknown", "map_link": "#"}]})
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
