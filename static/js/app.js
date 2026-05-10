@@ -172,8 +172,24 @@ document.addEventListener('DOMContentLoaded', () => {
     async function fetchDoctors(specialty) {
         doctorsList.innerHTML = '<div class="loader"></div>';
 
-        // In a real app, we would get navigator.geolocation here
-        // For this demo, we mock location
+        let userLat = 0;
+        let userLng = 0;
+
+        // Try to get real location
+        try {
+            const position = await new Promise((resolve, reject) => {
+                if (!navigator.geolocation) {
+                    reject(new Error('Geolocation not supported'));
+                } else {
+                    navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000 });
+                }
+            });
+            userLat = position.coords.latitude;
+            userLng = position.coords.longitude;
+        } catch (error) {
+            console.warn('Could not get real location, falling back to mock coordinates:', error.message);
+        }
+
         try {
             const response = await fetch('/api/doctors', {
                 method: 'POST',
@@ -182,7 +198,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 },
                 body: JSON.stringify({ 
                     specialty: specialty,
-                    location: { lat: 0, lng: 0 } // mocked
+                    location: { lat: userLat, lng: userLng }
+
                 }),
             });
 
